@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customers
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # SQLite на ReadWriteOnce-томе: две копии одновременно запускать нельзя
+  selector:
+    matchLabels:
+      app: customers
+  template:
+    metadata:
+      labels:
+        app: customers
+    spec:
+      containers:
+        - name: customers
+          image: koptelovkir535363/tool-rental-customers:latest
+          ports:
+            - containerPort: 5000
+          env:
+            - name: RENTALS_URL
+              value: http://rentals-service:5000
+          volumeMounts:
+            - name: data
+              mountPath: /app/instance
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: customers-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: customers-service
+spec:
+  selector:
+    app: customers
+  ports:
+    - port: 5000
+      targetPort: 5000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: customers-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

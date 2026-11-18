@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}Сервис недоступен — СтройАренда{% endblock %}
+{% block content %}<div class="panel empty"><h1>Сервис временно недоступен</h1><p>{{ message }}</p><a class="btn" href="{{ url_for('dashboard') }}">На главную</a></div>{% endblock %}

@@ -1,0 +1,135 @@
+services:
+  tools:
+    build:
+      context: .
+      dockerfile: services/tools/Dockerfile
+    image: koptelovkir535363/tool-rental-tools:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      RENTALS_URL: http://rentals:5000
+      MAINTENANCE_URL: http://maintenance:5000
+    volumes:
+      - tools-data:/app/instance
+    expose:
+      - "5000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  customers:
+    build:
+      context: .
+      dockerfile: services/customers/Dockerfile
+    image: koptelovkir535363/tool-rental-customers:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      RENTALS_URL: http://rentals:5000
+    volumes:
+      - customers-data:/app/instance
+    expose:
+      - "5000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  rentals:
+    build:
+      context: .
+      dockerfile: services/rentals/Dockerfile
+    image: koptelovkir535363/tool-rental-rentals:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      TOOLS_URL: http://tools:5000
+      CUSTOMERS_URL: http://customers:5000
+    volumes:
+      - rentals-data:/app/instance
+    expose:
+      - "5000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  maintenance:
+    build:
+      context: .
+      dockerfile: services/maintenance/Dockerfile
+    image: koptelovkir535363/tool-rental-maintenance:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      TOOLS_URL: http://tools:5000
+    volumes:
+      - maintenance-data:/app/instance
+    expose:
+      - "5000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  web:
+    build:
+      context: .
+      dockerfile: services/web/Dockerfile
+    image: koptelovkir535363/tool-rental-web:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      TOOLS_URL: http://tools:5000
+      CUSTOMERS_URL: http://customers:5000
+      RENTALS_URL: http://rentals:5000
+      MAINTENANCE_URL: http://maintenance:5000
+    expose:
+      - "5000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  tools-data:
+  customers-data:
+  rentals-data:
+  maintenance-data:

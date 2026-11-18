@@ -1,0 +1,11 @@
+# Образ для прогона тестов всех сервисов: docker build -f Dockerfile.test -t tool-rental-tests .
+FROM python:3.12-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1
+COPY requirements-dev.txt requirements.txt ./
+RUN pip install --no-cache-dir -r requirements-dev.txt
+COPY common ./common
+COPY services ./services
+COPY tests ./tests
+COPY pytest.ini .
+CMD ["python", "-m", "pytest", "-v"]

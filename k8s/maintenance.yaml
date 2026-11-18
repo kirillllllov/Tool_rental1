@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: maintenance
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # SQLite на ReadWriteOnce-томе: две копии одновременно запускать нельзя
+  selector:
+    matchLabels:
+      app: maintenance
+  template:
+    metadata:
+      labels:
+        app: maintenance
+    spec:
+      containers:
+        - name: maintenance
+          image: koptelovkir535363/tool-rental-maintenance:latest
+          ports:
+            - containerPort: 5000
+          env:
+            - name: TOOLS_URL
+              value: http://tools-service:5000
+          volumeMounts:
+            - name: data
+              mountPath: /app/instance
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: maintenance-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: maintenance-service
+spec:
+  selector:
+    app: maintenance
+  ports:
+    - port: 5000
+      targetPort: 5000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: maintenance-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
