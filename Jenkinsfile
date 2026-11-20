@@ -1,5 +1,6 @@
 def SERVICES = ['tools', 'customers', 'rentals', 'maintenance', 'web']
-def PROJECT_NAME = 'construction_tool_rental1'
+
+def COMPOSE_PROJECT = 'construction_tool_rental1'
 
 def isMain() {
     def b = env.GIT_BRANCH ?: env.BRANCH_NAME ?: ''
@@ -8,9 +9,6 @@ def isMain() {
 
 pipeline {
     agent any
-    triggers {
-        githubPush()
-    }
 
     environment {
         DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
@@ -34,7 +32,9 @@ pipeline {
             steps {
                 script {
                     for (s in SERVICES) {
-                        bat "docker build -f services/${s}/Dockerfile -t ${env.IMAGE_PREFIX}-${s}:${env.IMAGE_TAG} -t ${env.IMAGE_PREFIX}-${s}:latest ."
+                        bat "docker build -f services/${s}/Dockerfile " +
+                            "-t ${env.IMAGE_PREFIX}-${s}:${env.IMAGE_TAG} " +
+                            "-t ${env.IMAGE_PREFIX}-${s}:latest ."
                     }
                 }
             }
@@ -57,23 +57,24 @@ pipeline {
         stage('Deploy to main') {
             when { expression { return isMain() } }
             steps {
-                // Фиксируем имя проекта + тег, чтобы Compose не плодил tool-rental4-main-*
-                bat "set IMAGE_TAG=${env.BUILD_NUMBER} && docker compose -p ${PROJECT_NAME} build"
-                bat "set IMAGE_TAG=${env.BUILD_NUMBER} && docker compose -p ${PROJECT_NAME} up -d --no-build"
+                bat 'echo IMAGE_TAG=[%IMAGE_TAG%]'
+                bat "docker compose -p ${COMPOSE_PROJECT} build"
+                bat "docker compose -p ${COMPOSE_PROJECT} up -d --no-build"
 
-                bat '''
+                bat """
                     echo Проверка доступности сайта через Nginx
-                    powershell -NoProfile -ExecutionPolicy Bypass -Command "$ok = $false; for ($i = 0; $i -lt 20; $i++) { try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1/' -UseBasicParsing -TimeoutSec 3; if ($r.StatusCode -eq 200) { $ok = $true; break } } catch {}; Start-Sleep -Seconds 3 }; if (-not $ok) { exit 1 }"
+
+                    powershell -NoProfile -ExecutionPolicy Bypass -Command "\$ok = \$false; for (\$i = 0; \$i -lt 20; \$i++) { try { \$r = Invoke-WebRequest -Uri 'http://127.0.0.1/' -UseBasicParsing -TimeoutSec 3; if (\$r.StatusCode -eq 200) { \$ok = \$true; break } } catch {}; Start-Sleep -Seconds 3 }; if (-not \$ok) { exit 1 }"
 
                     if errorlevel 1 (
                         echo ОШИБКА: сайт не отвечает.
-                        docker compose -p construction_tool_rental1 ps
-                        docker compose -p construction_tool_rental1 logs --tail=100
+                        docker compose -p ${COMPOSE_PROJECT} ps
+                        docker compose -p ${COMPOSE_PROJECT} logs --tail=100
                         exit /b 1
                     )
 
                     echo Сайт успешно запущен: http://localhost
-                '''
+                """
             }
         }
     }
