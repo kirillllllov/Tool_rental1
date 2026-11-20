@@ -8,6 +8,9 @@ def isMain() {
 
 pipeline {
     agent any
+    triggers {
+        githubPush()
+    }
 
     environment {
         DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
