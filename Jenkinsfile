@@ -5,7 +5,7 @@ def isMain() {
     def b = env.GIT_BRANCH ?: env.BRANCH_NAME ?: ''
     return b == 'main' || b == 'origin/main' || b == 'refs/heads/main'
 }
-
+kubectl get deployment nginx -o yaml
 pipeline {
     agent any
 
